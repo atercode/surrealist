@@ -7,111 +7,127 @@ import { toBlob, toSvg } from "html-to-image";
 import ELK from "elkjs/lib/elk.bundled";
 
 export const NODE_TYPES = {
-	table: TableNode,
-	edge: EdgeNode,
+  table: TableNode,
+  edge: EdgeNode,
 };
 
 const EDGE_OPTIONS = {
-	type: 'smoothstep',
-	style: { strokeWidth: 2 },
-	pathOptions: { borderRadius: 50 }
+  type: "smoothstep",
+  style: { strokeWidth: 2 },
+  pathOptions: { borderRadius: 50 },
 };
 
-export type InternalNode = Node & { width: number, height: number };
+const FOREIGN_RELATIONS_OPTIONS = {
+  type: "smoothstep",
+  style: { strokeWidth: 1, strokeDasharray: "6" },
+  pathOptions: { borderRadius: 50 },
+};
+
+export type InternalNode = Node & { width: number; height: number };
 
 export interface NodeData {
-	table: TableInfo;
-	isSelected: boolean;
-	hasIncoming: boolean;
-	hasOutgoing: boolean;
+  table: TableInfo;
+  isSelected: boolean;
+  hasIncoming: boolean;
+  hasOutgoing: boolean;
 }
 
 interface NormalizedTable {
-	isEdge: boolean;
-	table: TableInfo;
-	from: string[];
-	to: string[];
+  isEdge: boolean;
+  table: TableInfo;
+  from: string[];
+  to: string[];
+  foreignRelations: string[];
 }
 
 function normalizeTables(tables: TableInfo[]): NormalizedTable[] {
-	return tables.map((table) => {
-		const [isEdge, from, to] = extractEdgeRecords(table);
+  return tables.map((table) => {
+    const [isEdge, from, to, foreignRelations] = extractEdgeRecords(table);
 
-		return {
-			table,
-			isEdge,
-			to,
-			from,
-		};
-	});
+    return {
+      table,
+      isEdge,
+      to,
+      from,
+      foreignRelations,
+    };
+  });
 }
 
 export function buildFlowNodes(tables: TableInfo[]): [Node[], Edge[]] {
-	const items = normalizeTables(tables);
-	const nodeIndex: Record<string, Node> = {};
-	const edges: Edge[] = [];
-	const nodes: Node[] = [];
+  const items = normalizeTables(tables);
+  const nodeIndex: Record<string, Node> = {};
+  const edges: Edge[] = [];
+  const nodes: Node[] = [];
 
-	// Define all nodes
-	for (const { table, isEdge } of items) {
-		const name = table.schema.name;
-		const node: Node<NodeData> = {
-			id: name,
-			type: isEdge ? "edge" : "table",
-			position: { x: 0, y: 0 },
-			sourcePosition: Position.Right,
-			targetPosition: Position.Left,
-			data: {
-				table,
-				isSelected: false,
-				hasIncoming: false,
-				hasOutgoing: false
-			},
-		};
+  // Define all nodes
+  for (const { table, isEdge, foreignRelations } of items) {
+    const name = table.schema.name;
+    const node: Node<NodeData> = {
+      id: name,
+      type: isEdge ? "edge" : "table",
+      position: { x: 0, y: 0 },
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+      data: {
+        table,
+        isSelected: false,
+        hasIncoming: false,
+        hasOutgoing: false,
+      },
+    };
 
-		nodes.push(node);
-		nodeIndex[name] = node;
-	}
+    nodes.push(node);
+    nodeIndex[name] = node;
+    for (const foreignTable of foreignRelations) {
+      edges.push({
+        ...FOREIGN_RELATIONS_OPTIONS,
+        id: `${table.schema.name}-foreign-${foreignTable}`,
+        source: foreignTable,
+        target: table.schema.name,
+      });
+    }
+  }
 
-	const edgeItems = items.filter((item) => item.isEdge);
+  const edgeItems = items.filter((item) => item.isEdge);
 
-	// Define all edges
-	for (const { table, from, to } of edgeItems) {
-		for (const fromTable of from) {
-			edges.push({
-				...EDGE_OPTIONS,
-				id: `${table.schema.name}-${fromTable}`,
-				source: fromTable,
-				target: table.schema.name
-			});
+  // Define all edges
+  for (const { table, from, to } of edgeItems) {
+    for (const fromTable of from) {
+      edges.push({
+        ...EDGE_OPTIONS,
+        id: `${table.schema.name}-${fromTable}`,
+        source: fromTable,
+        target: table.schema.name,
+      });
 
-			const node = nodeIndex[fromTable];
+      const node = nodeIndex[fromTable];
 
-			if (node) {
-				node.data.hasOutgoing = true;
-			}
-		}
+      if (node) {
+        node.data.hasOutgoing = true;
+      }
+    }
 
-		for (const toTable of to) {
-			edges.push({
-				...EDGE_OPTIONS,
-				id: `${table.schema.name}-${toTable}`,
-				source: table.schema.name,
-				target: toTable
-			});
+    for (const toTable of to) {
+      edges.push({
+        ...EDGE_OPTIONS,
+        id: `${table.schema.name}-${toTable}`,
+        source: table.schema.name,
+        target: toTable,
+      });
 
-			const node = nodeIndex[toTable];
+      const node = nodeIndex[toTable];
 
-			if (node) {
-				node.data.hasIncoming = true;
-			}
-		}
-	}
+      if (node) {
+        node.data.hasIncoming = true;
+      }
+    }
+  }
 
-	return [nodes, edges];
+  return [nodes, edges];
 }
 
-type DimensionNode = { id: string, width: number, height: number };
+type DimensionNode = { id: string; width: number; height: number };
 
 /**
  * Apply a layout to the given nodes and edges
@@ -121,47 +137,47 @@ type DimensionNode = { id: string, width: number, height: number };
  * @returns The changes to apply
  */
 export async function applyNodeLayout(
-	nodes: DimensionNode[],
-	edges: Edge[],
-	direction: DiagramDirection
+  nodes: DimensionNode[],
+  edges: Edge[],
+  direction: DiagramDirection,
 ): Promise<NodeChange[]> {
-	if (nodes.some((node) => !node.width || !node.height)) {
-		return [];
-	}
+  if (nodes.some((node) => !node.width || !node.height)) {
+    return [];
+  }
 
-	const elk = new ELK();
-	const graph = {
-		id: 'root',
-		children: nodes.map(node => ({
-			id: node.id,
-			width: node.width,
-			height: node.height,
-		})),
-		edges: edges.map(edge => ({
-			id: edge.id,
-			sources: [edge.source],
-			targets: [edge.target]
-		}))
-	};
+  const elk = new ELK();
+  const graph = {
+    id: "root",
+    children: nodes.map((node) => ({
+      id: node.id,
+      width: node.width,
+      height: node.height,
+    })),
+    edges: edges.map((edge) => ({
+      id: edge.id,
+      sources: [edge.source],
+      targets: [edge.target],
+    })),
+  };
 
-	const layout = await elk.layout(graph, {
-		layoutOptions: {
-			'elk.algorithm': 'layered',
-			'elk.layered.spacing.nodeNodeBetweenLayers': '100',
-			'elk.spacing.nodeNode': '80',
-			'elk.direction': direction == "ltr" ? 'RIGHT' : 'LEFT'
-		}
-	});
+  const layout = await elk.layout(graph, {
+    layoutOptions: {
+      "elk.algorithm": "layered",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "100",
+      "elk.spacing.nodeNode": "80",
+      "elk.direction": direction == "ltr" ? "RIGHT" : "LEFT",
+    },
+  });
 
-	const children = layout.children || [];
+  const children = layout.children || [];
 
-	return children.map(({ id, x, y }) => {
-		return {
-			id,
-			type: "position",
-			position: { x: x!, y: y! }
-		};
-	});
+  return children.map(({ id, x, y }) => {
+    return {
+      id,
+      type: "position",
+      position: { x: x!, y: y! },
+    };
+  });
 }
 
 /**
@@ -171,13 +187,13 @@ export async function applyNodeLayout(
  * @param type The type of output to create
  * @returns
  */
-export async function createSnapshot(el: HTMLElement, type: 'png' | 'svg') {
-	if (type == 'png') {
-		return toBlob(el, { cacheBust: true });
-	} else {
-		const dataUrl = await toSvg(el, { cacheBust: true });
-		const res = await fetch(dataUrl);
+export async function createSnapshot(el: HTMLElement, type: "png" | "svg") {
+  if (type == "png") {
+    return toBlob(el, { cacheBust: true });
+  } else {
+    const dataUrl = await toSvg(el, { cacheBust: true });
+    const res = await fetch(dataUrl);
 
-		return await res.blob();
-	}
+    return await res.blob();
+  }
 }

@@ -1,10 +1,41 @@
 import classes from "./style.module.scss";
 import { Icon } from "~/components/Icon";
 import { ContentPane } from "~/components/Pane";
-import { ActionIcon, Box, Button, Group, Kbd, Loader, Modal, Popover, Stack, Text, Title, Tooltip } from "@mantine/core";
-import { Background, NodeChange, ReactFlow, useEdgesState, useNodesState, useReactFlow } from "reactflow";
-import { ElementRef, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { NODE_TYPES, applyNodeLayout, buildFlowNodes, createSnapshot } from "./helpers";
+import {
+	ActionIcon,
+	Box,
+	Button,
+	Group,
+	Kbd,
+	Loader,
+	Modal,
+	Popover,
+	Stack,
+	Text,
+	Title,
+	Tooltip,
+} from "@mantine/core";
+import {
+	Background,
+	NodeChange,
+	ReactFlow,
+	useEdgesState,
+	useNodesState,
+	useReactFlow,
+} from "reactflow";
+import {
+	ElementRef,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
+import {
+	NODE_TYPES,
+	applyNodeLayout,
+	buildFlowNodes,
+	createSnapshot,
+} from "./helpers";
 import { DiagramDirection, DiagramMode, TableInfo } from "~/types";
 import { useStable } from "~/hooks/stable";
 import { useIsLight } from "~/hooks/theme";
@@ -20,7 +51,16 @@ import { themeColor } from "~/util/mantine";
 import { useSchema } from "~/hooks/schema";
 import { useContextMenu } from "mantine-contextmenu";
 import { useBoolean } from "~/hooks/boolean";
-import { iconAPI, iconCog, iconDesigner, iconFullscreen, iconHelp, iconImage, iconPlus, iconRefresh } from "~/util/icons";
+import {
+	iconAPI,
+	iconCog,
+	iconDesigner,
+	iconFullscreen,
+	iconHelp,
+	iconImage,
+	iconPlus,
+	iconRefresh,
+} from "~/util/icons";
 import { useInterfaceStore } from "~/stores/interface";
 import { showInfo } from "~/util/helpers";
 
@@ -74,7 +114,7 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 			doLayoutRef.current = false;
 
 			const direction = activeSession.diagramDirection;
-			const dimNodes = changes.flatMap(change => {
+			const dimNodes = changes.flatMap((change) => {
 				if (change.type !== "dimensions" || !change.dimensions) {
 					return [];
 				}
@@ -86,7 +126,11 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 				};
 			});
 
-			const layoutChanges = await applyNodeLayout(dimNodes, edges, direction);
+			const layoutChanges = await applyNodeLayout(
+				dimNodes,
+				edges,
+				direction
+			);
 
 			setComputing(false);
 
@@ -122,23 +166,28 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 		doLayoutRef.current = true;
 	});
 
-	const saveImage = useStable(async (type: 'png' | 'svg') => {
+	const saveImage = useStable(async (type: "png" | "svg") => {
 		const viewport = getViewport();
 
-		const isSuccess = await adapter.saveFile("Save snapshot", `snapshot.${type}`, [
-			{
-				name: "Image",
-				extensions: [type],
-			},
-		], async () => {
-			setIsExporting(true);
+		const isSuccess = await adapter.saveFile(
+			"Save snapshot",
+			`snapshot.${type}`,
+			[
+				{
+					name: "Image",
+					extensions: [type],
+				},
+			],
+			async () => {
+				setIsExporting(true);
 
-			await sleep(50);
+				await sleep(50);
 
-			fitView();
+				fitView();
 
-			return await createSnapshot(ref.current!, type);
-		});
+				return await createSnapshot(ref.current!, type);
+			}
+		);
 
 		setIsExporting(false);
 		setViewport(viewport);
@@ -146,7 +195,7 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 		if (isSuccess) {
 			showInfo({
 				title: "Designer",
-				subtitle: "Snapshot saved to disk"
+				subtitle: "Snapshot saved to disk",
 			});
 		}
 	});
@@ -174,20 +223,20 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 	useLayoutEffect(() => {
 		if (isViewActive && isConnected) {
 			renderGraph();
-		} else if(!isConnected) {
+		} else if (!isConnected) {
 			setNodes([]);
 			setEdges([]);
 		}
 	}, [schema, isViewActive, isConnected, activeSession.diagramDirection]);
 
 	useEffect(() => {
-		setNodes(curr => {
-			return curr.map(node => {
+		setNodes((curr) => {
+			return curr.map((node) => {
 				return {
 					...node,
 					data: {
 						...node.data,
-						isSelected: node.id === props.active?.schema.name
+						isSelected: node.id === props.active?.schema.name,
 					},
 				};
 			});
@@ -198,7 +247,7 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 		<ContentPane
 			title="Table Graph"
 			icon={iconDesigner}
-			style={{ overflow: 'hidden' }}
+			style={{ overflow: "hidden" }}
 			rightSection={
 				<Group wrap="nowrap">
 					<Tooltip label="New table">
@@ -217,9 +266,7 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 					>
 						<Popover.Target>
 							<Tooltip label="Graph Options">
-								<ActionIcon
-									aria-label="Expand graph options"
-								>
+								<ActionIcon aria-label="Expand graph options">
 									<Icon path={iconCog} />
 								</ActionIcon>
 							</Tooltip>
@@ -250,8 +297,11 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 						</ActionIcon>
 					</Tooltip>
 				</Group>
-			}>
-			<div style={{ position: "relative", width: "100%", height: "100%" }}>
+			}
+		>
+			<div
+				style={{ position: "relative", width: "100%", height: "100%" }}
+			>
 				<ReactFlow
 					ref={ref}
 					fitView
@@ -259,7 +309,7 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 					edges={edges}
 					nodeTypes={NODE_TYPES}
 					nodesConnectable={false}
-					edgesFocusable={false}
+					edgesFocusable={true}
 					proOptions={{ hideAttribution: true }}
 					onNodesChange={onNodesChange}
 					onEdgesChange={onEdgesChange}
@@ -270,40 +320,40 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 					}}
 					onContextMenu={showContextMenu([
 						{
-							key: 'create',
+							key: "create",
 							icon: <Icon path={iconPlus} />,
-							title: 'Create table...',
-							onClick: openTableCreator
+							title: "Create table...",
+							onClick: openTableCreator,
 						},
 						{
-							key: 'view',
+							key: "view",
 							icon: <Icon path={iconFullscreen} />,
-							title: 'Fit viewport',
-							onClick: () => fitView()
+							title: "Fit viewport",
+							onClick: () => fitView(),
 						},
 						{
-							key: 'refresh',
+							key: "refresh",
 							icon: <Icon path={iconRefresh} />,
-							title: 'Reset graph',
-							onClick: renderGraph
+							title: "Reset graph",
+							onClick: renderGraph,
 						},
-						{ key: 'divider' },
+						{ key: "divider" },
 						{
-							key: 'download-png',
+							key: "download-png",
 							icon: <Icon path={iconImage} />,
-							title: 'Export as PNG',
-							onClick: () => saveImage('png')
+							title: "Export as PNG",
+							onClick: () => saveImage("png"),
 						},
 						{
-							key: 'download-svg',
+							key: "download-svg",
 							icon: <Icon path={iconAPI} />,
-							title: 'Export as SVG',
-							onClick: () => saveImage('svg')
+							title: "Export as SVG",
+							onClick: () => saveImage("svg"),
 						},
 					])}
 				>
 					<Background
-						color={themeColor(isLight ? "slate.2": "slate.6")}
+						color={themeColor(isLight ? "slate.2" : "slate.6")}
 					/>
 				</ReactFlow>
 
@@ -336,7 +386,8 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 								No tables defined
 							</Text>
 							<Text>
-								Define tables to visualize them in the table graph
+								Define tables to visualize them in the table
+								graph
 							</Text>
 						</Box>
 						<Button
@@ -360,34 +411,50 @@ export function TableGraphPane(props: TableGraphPaneProps) {
 				title={<ModalTitle>Using the Table Graph</ModalTitle>}
 			>
 				<Text c={isLight ? "slate.7" : "slate.2"}>
-					<HelpTitle isLight={isLight}>How do I use the table graph?</HelpTitle>
+					<HelpTitle isLight={isLight}>
+						How do I use the table graph?
+					</HelpTitle>
 
 					<Text mt={8} mb="xl">
-						The table graph will automatically render based on the tables in your database. You can click on a table to
-						view its details and modify it's schema. Changes made to the schema will be reflected in the graph.
+						The table graph will automatically render based on the
+						tables in your database. You can click on a table to
+						view its details and modify it's schema. Changes made to
+						the schema will be reflected in the graph.
 					</Text>
 
-					<HelpTitle isLight={isLight}>Can I change how tables are displayed?</HelpTitle>
+					<HelpTitle isLight={isLight}>
+						Can I change how tables are displayed?
+					</HelpTitle>
 
 					<Text mt={8} mb="xl">
-						Press the <Icon path={iconCog} size="sm" /> button in the top right corner to open the graph options. Inside you
-						can change the table layout and table appearance. These settings are saved per session, however you can configure
-						default values in the Surrealist settings.
+						Press the <Icon path={iconCog} size="sm" /> button in
+						the top right corner to open the graph options. Inside
+						you can change the table layout and table appearance.
+						These settings are saved per session, however you can
+						configure default values in the Surrealist settings.
 					</Text>
 
-					<HelpTitle isLight={isLight}>Why are edges missing?</HelpTitle>
+					<HelpTitle isLight={isLight}>
+						Why are edges missing?
+					</HelpTitle>
 
 					<Text mt={8} mb="xl">
-						Surrealist dermines edges by searching for correctly configured <Kbd>in</Kbd> and <Kbd>out</Kbd> fields. You
-						can automatically create a new edge table by pressing the <Icon path={iconPlus} /> button on the Table Graph
-						panel. Keep in mind edges are only visible when the layout is set to Diagram.
+						Surrealist dermines edges by searching for correctly
+						configured <Kbd>in</Kbd> and <Kbd>out</Kbd> fields. You
+						can automatically create a new edge table by pressing
+						the <Icon path={iconPlus} /> button on the Table Graph
+						panel. Keep in mind edges are only visible when the
+						layout is set to Diagram.
 					</Text>
 
-					<HelpTitle isLight={isLight}>Can I save the graph as an image?</HelpTitle>
+					<HelpTitle isLight={isLight}>
+						Can I save the graph as an image?
+					</HelpTitle>
 
 					<Text mt={8}>
-						Press the save snapshot button in the options dropdown to save the current graph as a PNG
-						image. This snapshot will use your current theme, position, and scale.
+						Press the save snapshot button in the options dropdown
+						to save the current graph as a PNG image. This snapshot
+						will use your current theme, position, and scale.
 					</Text>
 				</Text>
 			</Modal>
